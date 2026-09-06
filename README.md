@@ -61,12 +61,12 @@ App sudah punya **bot lokal** sebagai fallback yang berfungsi tanpa konfigurasi 
 
 1. Login sebagai **admin** → buka menu **Pengaturan → AI Gemini**.
 2. Masukkan **API key Gemini** https://aistudio.google.com/apikey → **Simpan** → **Uji Koneksi**.
-3. Selesai! Chat AI langsung memakai Gemini (bisa query produk/stok & **generate gambar** via Imagen).
+3. Selesai! Untuk **mengganti model**, isi kolom **Model Gemini** (mis. `gemini-2.5-pro`, kosongkan = `gemini-2.0-flash`) → **Simpan** → **Uji Koneksi**.
 
 Agar **semua pengguna** ikut memakai Gemini, tambahkan di `.env` sebelum build:
 ```
 VITE_GEMINI_API_KEY=AIzaSy...
-VITE_GEMINI_MODEL=gemini-2.0-flash    # opsional
+VITE_GEMINI_MODEL=gemini-2.5-pro    # opsional, default gemini-2.0-flash
 ```
 Aplikasi memakai `VITE_GEMINI_API_KEY` jika key admin belum tersimpan di browser pengguna.
 

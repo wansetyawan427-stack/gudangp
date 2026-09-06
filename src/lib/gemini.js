@@ -3,6 +3,9 @@ import { supabase } from './supabase'
 const API = 'https://generativelanguage.googleapis.com/v1beta'
 const STORAGE_KEY = 'gudangku-gemini-key'
 const DB_KEY = 'gemini_api_key'
+const MODEL_STORAGE_KEY = 'gudangku-gemini-model'
+const DB_MODEL_KEY = 'gemini_model'
+const DEFAULT_MODEL = 'gemini-2.0-flash'
 
 const SYSTEM_PROMPT =
   'Kamu adalah asisten AI "GudangKu", aplikasi manajemen gudang berbahasa Indonesia.\n' +
@@ -156,8 +159,71 @@ export async function getGeminiKey() {
   return ''
 }
 
-export async function testGeminiKey(key) {
-  const res = await fetch(`${API}/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`, {
+export async function listGeminiModels(key) {
+  const res = await fetch(`${API}/models?key=${encodeURIComponent(key)}`, {
+    headers: { 'Content-Type': 'application/json' },
+  })
+  if (!res.ok) throw new Error((await res.text()).slice(0, 200))
+  const data = await res.json()
+  const names = (data?.models || [])
+    .filter((m) => m?.supportedGenerationMethods?.includes('generateContent'))
+    .map((m) => String(m.name).replace(/^models\//, ''))
+    .filter((n) => /gemini/i.test(n) && !/tuned|fine.?tune|embed/i.test(n))
+  return [...new Set(names)].sort()
+}
+
+const PREFERRED_MODELS = [
+  'gemini-3-6',
+  'gemini-3-5',
+  'gemini-3-4',
+  'gemini-2.5-pro',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash',
+  'gemini-1.5-pro',
+  'gemini-1.5-flash',
+]
+
+export function pickBestGeminiModel(names = []) {
+  for (const k of PREFERRED_MODELS) if (names.includes(k)) return k
+  return names[0] || ''
+}
+
+export function getGeminiModelSync() {
+  try {
+    const saved = localStorage.getItem(MODEL_STORAGE_KEY)
+    if (saved) return saved
+  } catch {
+    /* abaikan */
+  }
+  return import.meta.env.VITE_GEMINI_MODEL || DEFAULT_MODEL
+}
+
+export function saveGeminiModelLocal(model) {
+  try {
+    if (model) localStorage.setItem(MODEL_STORAGE_KEY, model)
+    else localStorage.removeItem(MODEL_STORAGE_KEY)
+  } catch {
+    /* abaikan */
+  }
+}
+
+export async function getGeminiModel() {
+  const local = getGeminiModelSync()
+  if (local !== DEFAULT_MODEL) return local
+  if (supabase) {
+    try {
+      const { data } = await supabase.from('settings').select('value').eq('key', DB_MODEL_KEY).maybeSingle()
+      if (data?.value) return data.value
+    } catch {
+      /* abaikan */
+    }
+  }
+  return local
+}
+
+export async function testGeminiKey(key, model = getGeminiModelSync()) {
+  const res = await fetch(`${API}/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -181,7 +247,7 @@ function toGeminiContent(msg) {
 export async function geminiChat(history = [], ctx = {}) {
   const key = await getGeminiKey()
   if (!key) throw new Error('Gemini API key tidak ditemukan')
-  const model = import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.0-flash'
+  const model = await getGeminiModel()
 
   const contents = history.filter(Boolean).map(toGeminiContent)
 
