@@ -6,7 +6,7 @@ Aplikasi web React untuk mengelola gudang dengan **login multi-role**, **POS kas
 
 | Role | Akses |
 |------|-------|
-| 👑 **Admin** | Semua menu: Dashboard, Produk, Kategori, Stok, Kasir, Transaksi, Pengguna (buat/ubah/hapus pengguna & role) |
+| 👑 **Admin** | Semua menu: Dashboard, Produk, Kategori, Stok, Kasir, Transaksi, Pengguna (buat/ubah/hapus pengguna & role), **Pengaturan** (tema + API key Gemini) |
 | 📦 **Gudang** | Dashboard, Produk (tambah/edit, tidak hapus), Kategori, Stok (masuk/keluar + edit/hapus riwayat) |
 | 🧾 **Kasir** | Dashboard, Kasir (POS + scan barcode + cetak nota), Transaksi (lihat, ubah metode, void/batalkan) |
 | 🛍️ **Pelanggan** | Dashboard, Belanja (keranjang & checkout), Riwayat transaksi miliknya |
@@ -19,7 +19,9 @@ Aplikasi web React untuk mengelola gudang dengan **login multi-role**, **POS kas
 - **Pengguna** — admin bisa **tambah akun** (via Edge Function), ubah role, dan hapus pengguna.
 
 - **AI Chat Assistant** tersedia untuk semua role (klik tombol chat kanan bawah).
-- **AI Generate Gambar** — minta gambar (mis. "buatkan gambar logo gudang"), hasilnya tampil langsung di chat.
+- **AI Gemini (Google)** — chat langsung memakai Gemini API (function calling untuk query produk/stok + **generate gambar via Imagen**). API key diatur admin di menu **Pengaturan**, atau via `VITE_GEMINI_API_KEY`.
+- **Generate Barcode & QR otomatis** — saat tambah/edit barang klik tombol **Generate** untuk membuat barcode EAN-13 + QR otomatis (QR membuka halaman produk saat discan). Lihat & cetak lewat ikon QR di kartu produk.
+- **Tema Light / Dark** — ubah lewat tombol matahari/bulan di header atau menu **Pengaturan**.
 - Scan barcode produk (stok & kasir).
 - Grafik stok, peringatan stok menipis, riwayat pergerakan stok.
 - Cetak nota transaksi.
@@ -28,9 +30,9 @@ Aplikasi web React untuk mengelola gudang dengan **login multi-role**, **POS kas
 
 ## 🧰 Teknologi
 
-- **Frontend**: React 18, Vite, Tailwind CSS 4, React Router, Recharts
+- **Frontend**: React 18, Vite, Tailwind CSS 4, React Router, Recharts, jsbarcode + qrcode
 - **Backend**: Supabase (Auth, PostgreSQL + RLS, Edge Function)
-- **AI**: Supabase Edge Function `ai-chat` (OpenAI-compatible API). Jika belum dikonfigurasi, otomatis memakai **bot lokal** yang tetap bisa menjawab soal produk/stok.
+- **AI**: Google **Gemini** (langsung dari browser, tool calling + Imagen untuk gambar). Cadangan: Edge Function `ai-chat` (OpenAI-compatible). Jika keduanya belum dikonfigurasi, otomatis memakai **bot lokal** yang tetap bisa menjawab soal produk/stok.
 
 ## 🚀 Setup Lokal
 
@@ -51,11 +53,24 @@ npm run dev            # http://localhost:5173
 
 > Pengguna **pertama** yang mendaftar otomatis menjadi **Admin**. Selanjutnya default **Pelanggan**. Admin bisa mengubah role pengguna di menu **Pengguna**.
 
-## 🧠 Setup AI Chat (Edge Function, opsional)
+## 🧠 Setup AI Chat
 
 App sudah punya **bot lokal** sebagai fallback yang berfungsi tanpa konfigurasi apa pun.
 
-Agar memakai AI sungguhan (termasuk **generate gambar**):
+### Opsi 1 (disarankan): Google Gemini langsung
+
+1. Login sebagai **admin** → buka menu **Pengaturan → AI Gemini**.
+2. Masukkan **API key Gemini** https://aistudio.google.com/apikey → **Simpan** → **Uji Koneksi**.
+3. Selesai! Chat AI langsung memakai Gemini (bisa query produk/stok & **generate gambar** via Imagen).
+
+Agar **semua pengguna** ikut memakai Gemini, tambahkan di `.env` sebelum build:
+```
+VITE_GEMINI_API_KEY=AIzaSy...
+VITE_GEMINI_MODEL=gemini-2.0-flash    # opsional
+```
+Aplikasi memakai `VITE_GEMINI_API_KEY` jika key admin belum tersimpan di browser pengguna.
+
+### Opsi 2: Edge Function (OpenAI-compatible)
 
 ```bash
 npm install -g supabase
@@ -79,6 +94,8 @@ Lalu set secret di **Dashboard → Edge Functions → ai-chat → Secrets**:
 
 > **Generate gambar** bekerja dengan model penyedia yang punya endpoint `/images/generations` (mis. OpenAI DALL·E). Ketik di chat mis. "buatkan gambar logo gudang" → URL gambar muncul langsung di percakapan, dan bisa dipakai sebagai foto produk.
 
+> Prioritas AI di chat: **Gemini** (jika ada key) → **Edge Function ai-chat** → **bot lokal**. Barcode EAN-13 dibuat otomatis (13 digit valid) saat tambah produk; QR menampilkan tautan langsung ke halaman produk. Data barcode dipakai oleh scanner barcode di menu **Stok** & **Kasir**.
+
 Edge function `ai-chat` memverifikasi JWT login, punya **tool calling** (query produk, cek stok menipis, riwayat stok, ringkasan dashboard, **generate_image**), dan menjawab dalam bahasa Indonesia.
 
 ## ▲ Deploy ke Vercel
@@ -93,6 +110,7 @@ Edge function `ai-chat` memverifikasi JWT login, punya **tool calling** (query p
 2. Tambahkan Environment Variables di Vercel (Project → Settings → Environment Variables):
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
+   - `VITE_GEMINI_API_KEY` (opsional — agar AI Gemini aktif untuk semua pengguna)
 
 3. Deploy. Build script otomatis `vite build`, output static di-fallback ke `index.html` (sudah diatur di `vercel.json`), jadi routing React bekerja normal.
 
@@ -107,10 +125,10 @@ Edge function `ai-chat` memverifikasi JWT login, punya **tool calling** (query p
 │       └── admin-create-user/index.ts  # Admin membuat pengguna
 ├── src/
 │   ├── App.jsx                    # Routing & protected routes
-│   ├── components/                # Layout, Chat, Modal, Scanner, dsb
-│   ├── pages/                     # Login, Dashboard, Produk, Kategori, Stok, Kasir, Transaksi, Pengguna
-│   ├── context/AuthContext.jsx    # Auth global
-│   └── lib/                       # supabase client, ai, format, print
+│   ├── components/                # Layout, Chat, Modal, BarcodeQR, Scanner, dsb
+│   ├── pages/                     # Login, Dashboard, Produk, Kategori, Stok, Kasir, Transaksi, Pengguna, Pengaturan
+│   ├── context/                   # AuthContext, ThemeContext
+│   └── lib/                       # supabase client, ai, gemini, barcode, format, print
 ├── .env.example
 └── vercel.json
 ```

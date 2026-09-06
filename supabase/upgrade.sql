@@ -189,6 +189,38 @@ grant execute on function public.update_stock_record(uuid, text, integer, text) 
 grant execute on function public.delete_stock_record(uuid) to authenticated;
 grant execute on function public.void_sale(uuid) to authenticated;
 
+-- Tabel pengaturan (Gemini API key dsb) khusus admin
+create table if not exists public.settings (
+  key text primary key,
+  value text,
+  updated_at timestamptz default now()
+);
+
+alter table public.settings enable row level security;
+
+drop policy if exists "settings_select_admin" on public.settings;
+create policy "settings_select_admin" on public.settings
+  for select to authenticated
+  using (public.current_role() = 'admin');
+
+drop policy if exists "settings_insert_admin" on public.settings;
+create policy "settings_insert_admin" on public.settings
+  for insert to authenticated
+  with check (public.current_role() = 'admin');
+
+drop policy if exists "settings_update_admin" on public.settings;
+create policy "settings_update_admin" on public.settings
+  for update to authenticated
+  using (public.current_role() = 'admin')
+  with check (public.current_role() = 'admin');
+
+drop policy if exists "settings_delete_admin" on public.settings;
+create policy "settings_delete_admin" on public.settings
+  for delete to authenticated
+  using (public.current_role() = 'admin');
+
+grant select, insert, update, delete on public.settings to authenticated;
+
 -- Seed kategori awal
 insert into public.categories (name)
 values ('Sembako'), ('Minuman'), ('Rumah Tangga'), ('Perawatan')

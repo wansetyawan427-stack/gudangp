@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ThemeProvider } from './context/ThemeContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import RoleCheck from './components/RoleCheck'
 import Layout from './components/Layout'
@@ -12,6 +13,7 @@ import Stock from './pages/Stock'
 import Cashier from './pages/Cashier'
 import Transactions from './pages/Transactions'
 import Users from './pages/Users'
+import Settings from './pages/Settings'
 
 function AppRoutes() {
   const { configured } = useAuth()
@@ -72,6 +74,14 @@ function AppRoutes() {
               </RoleCheck>
             }
           />
+          <Route
+            path="/pengaturan"
+            element={
+              <RoleCheck roles={['admin']}>
+                <Settings />
+              </RoleCheck>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>
@@ -81,10 +91,12 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }

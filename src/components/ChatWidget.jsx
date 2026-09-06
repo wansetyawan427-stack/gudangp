@@ -57,7 +57,11 @@ export default function ChatWidget() {
   }, [key, user])
 
   useEffect(() => {
-    if (user && open) localStorage.setItem(key, JSON.stringify(messages))
+    if (user && open) {
+      const trimmed = messages.slice(-50)
+      if (trimmed.length !== messages.length) setMessages(trimmed)
+      else localStorage.setItem(key, JSON.stringify(messages))
+    }
     if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight
   }, [messages, open, key, user])
 
@@ -69,9 +73,11 @@ export default function ChatWidget() {
     setMessages(next)
     setTyping(true)
     try {
+      const history = next.slice(-8).map((m) => ({ role: m.role, content: m.content }))
       const reply = await askAI(text, {
         role: profile?.role,
         name: profile?.full_name || 'Pengguna',
+        history,
       })
       setMessages([...next, { role: 'assistant', content: reply }])
     } finally {

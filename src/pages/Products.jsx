@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Search, Pencil, Trash2, Minus, ShoppingCart, X, ImageOff } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { Plus, Search, Pencil, Trash2, Minus, ShoppingCart, X, ImageOff, QrCode } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { rupiah } from '../lib/format'
 import ProductForm from '../components/ProductForm'
+import BarcodeQR from '../components/BarcodeQR'
 import Modal from '../components/Modal'
 
 export default function Products() {
@@ -22,7 +24,17 @@ export default function Products() {
   const [editing, setEditing] = useState(null)
   const [cart, setCart] = useState([])
   const [cartOpen, setCartOpen] = useState(false)
+  const [qrProduct, setQrProduct] = useState(null)
   const [processing, setProcessing] = useState(false)
+  const [params] = useSearchParams()
+  const searchInit = useRef(false)
+
+  useEffect(() => {
+    if (searchInit.current) return
+    searchInit.current = true
+    const sku = params.get('sku')
+    if (sku) setSearch(sku)
+  }, [params])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -31,7 +43,7 @@ export default function Products() {
       .from('products')
       .select('*')
       .order('created_at', { ascending: false })
-    if (search.trim()) query = query.ilike('name', `%${search.trim()}%`)
+    if (search.trim()) query = query.or(`name.ilike.%${search.trim()}%,sku.ilike.%${search.trim()}%`)
     if (category !== 'all') query = query.eq('category', category)
     const [cData, pRes] = await Promise.all([cRes, query])
     setCats((cData.data || []).map((c) => c.name))
@@ -186,6 +198,13 @@ export default function Products() {
                   )}
                 </div>
                 <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setQrProduct(p)}
+                    title="Lihat Barcode & QR"
+                    className="rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-600"
+                  >
+                    <QrCode size={15} />
+                  </button>
                   {canManage && (
                     <button
                       onClick={() => {
@@ -248,6 +267,8 @@ export default function Products() {
           categories={categories}
         />
       )}
+
+      <BarcodeQR open={!!qrProduct} onClose={() => setQrProduct(null)} product={qrProduct} />
 
       {canBuy && (
         <Modal open={cartOpen} onClose={() => setCartOpen(false)} title={`Keranjang (${cart.length})`}>

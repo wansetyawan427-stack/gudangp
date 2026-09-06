@@ -12,8 +12,12 @@ import {
   LogOut,
   MessageCircle,
   Tag,
+  Settings,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import { roleLabel, roleBadge } from '../lib/roles'
 import ChatWidget from './ChatWidget'
 
@@ -26,6 +30,7 @@ const NAVS = {
     { to: '/kasir', label: 'Kasir', icon: ReceiptText },
     { to: '/transaksi', label: 'Transaksi', icon: ShoppingCart },
     { to: '/pengguna', label: 'Pengguna', icon: Users },
+    { to: '/pengaturan', label: 'Pengaturan', icon: Settings },
   ],
   gudang: [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -47,6 +52,7 @@ const NAVS = {
 
 export default function Layout() {
   const { profile, logout } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
 
@@ -159,6 +165,13 @@ export default function Layout() {
               Selamat datang, {profile?.full_name || 'Pengguna'}! 👋
             </p>
           </div>
+          <button
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Mode Terang' : 'Mode Gelap'}
+            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+          >
+            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
           <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200 sm:flex">
             <MessageCircle size={14} />
             AI aktif

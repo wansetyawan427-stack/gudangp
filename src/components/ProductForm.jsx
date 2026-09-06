@@ -1,5 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { QrCode } from 'lucide-react'
 import Modal from './Modal'
+import BarcodeQR from './BarcodeQR'
+import { generateEAN13 } from '../lib/barcode'
 import { supabase } from '../lib/supabase'
 
 const empty = {
@@ -19,6 +22,7 @@ export default function ProductForm({ open, onClose, product, onSaved, categorie
   const [form, setForm] = useState({ ...empty })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -28,6 +32,28 @@ export default function ProductForm({ open, onClose, product, onSaved, categorie
   }, [open, product])
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+
+  const previewProduct = useMemo(
+    () => ({
+      id: product?.id || 'new',
+      name: form.name.trim() || 'Nama Produk',
+      sku: form.sku.trim() || `SKU-${Date.now().toString().slice(-6)}`,
+      category: form.category.trim(),
+      price: Number(form.price) || 0,
+      barcode: form.barcode.trim() || '',
+      unit: form.unit,
+    }),
+    [form, product]
+  )
+
+  const generateCodes = () => {
+    setForm((f) => ({
+      ...f,
+      sku: f.sku.trim() || `SKU-${Date.now().toString().slice(-6)}`,
+      barcode: f.barcode.trim() || generateEAN13(),
+    }))
+    setPreviewOpen(true)
+  }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -42,6 +68,7 @@ export default function ProductForm({ open, onClose, product, onSaved, categorie
       name: form.name.trim(),
       category: form.category.trim(),
       image_url: form.image_url.trim(),
+      barcode: form.barcode.trim() || generateEAN13(),
     }
     if (!payload.name) {
       setError('Nama produk wajib diisi')
@@ -110,8 +137,20 @@ export default function ProductForm({ open, onClose, product, onSaved, categorie
             <input type="number" min="0" value={form.min_stock} onChange={set('min_stock')} className={inputCls} />
           </div>
           <div>
-            <label className={labelCls}>Barcode</label>
-            <input value={form.barcode} onChange={set('barcode')} placeholder="Isi jika punya barcode" className={inputCls} />
+            <label className={labelCls}>Barcode & Kode QR</label>
+            <div className="flex gap-2">
+              <input value={form.barcode} onChange={set('barcode')} placeholder="Otomatis saat tambah jika kosong" className={inputCls} />
+              <button
+                type="button"
+                onClick={generateCodes}
+                className="flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-emerald-50 hover:text-emerald-700"
+              >
+                <QrCode size={14} /> Generate
+              </button>
+            </div>
+            <p className="mt-1 text-[11px] text-slate-400">
+              Klik <b>Generate</b> untuk membuat barcode EAN-13 & QR otomatis lengkap dengan pratinjau.
+            </p>
           </div>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -149,6 +188,8 @@ export default function ProductForm({ open, onClose, product, onSaved, categorie
           </button>
         </div>
       </form>
+
+      <BarcodeQR open={previewOpen} onClose={() => setPreviewOpen(false)} product={previewProduct} />
     </Modal>
   )
 }

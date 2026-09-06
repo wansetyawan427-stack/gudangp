@@ -1,11 +1,24 @@
 import { supabase } from './supabase'
 import { rupiah } from './format'
+import { geminiChat, getGeminiKey } from './gemini'
 
 export async function askAI(input, ctx = {}) {
+  const history = ctx.history || [{ role: 'user', content: input }]
+
+  const geminiKey = await getGeminiKey()
+  if (geminiKey) {
+    try {
+      const reply = await geminiChat(history, ctx)
+      return reply
+    } catch (e) {
+      return `⚠️ Gemini gagal (${e.message}). Coba lagi, atau minta admin cek API key di menu *Pengaturan*.`
+    }
+  }
+
   if (supabase) {
     try {
       const { data, error } = await supabase.functions.invoke('ai-chat', {
-        body: { messages: [{ role: 'user', content: input }] },
+        body: { messages: history.map((h) => ({ role: h.role === 'user' ? 'user' : 'assistant', content: h.content })) },
       })
       if (!error && data?.reply) return data.reply
     } catch {
@@ -120,10 +133,10 @@ async function localBot(raw, ctx) {
 
   if (has('gambar', 'logo', 'image', 'draw', 'generate', 'foto user', 'buatkan')) {
     return (
-      '🖼️ Aku bisa membuat gambar! Saat memakai AI sungguhan, cukup ketik misalnya:\n' +
+      '🖼️ Aku bisa membuat gambar! Saat AI Gemini aktif, cukup ketik misalnya:\n' +
       '• "buatkan gambar logo toko sembako"\n' +
       '• "generate gambar kemasan produk beras"\n\n' +
-      '▶️ **Cara mengaktifkan:** deploy Edge Function *ai-chat* dan isi secret `AI_API_KEY` (+ opsional `AI_IMAGE_KEY`) di Supabase Dashboard > Edge Functions. Setelah itu URL gambar hasil generate akan muncul di chat ini.'
+      '▶️ **Cara mengaktifkan:** sebagai admin, buka menu *Pengaturan > AI Gemini*, masukkan API key Gemini kamu (mendukung function calling). Gambar akan dibuat otomatis lewat model Imagen.'
     )
   }
 
