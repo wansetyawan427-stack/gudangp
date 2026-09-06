@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+html {
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+body {
+  @apply bg-slate-100 text-slate-800 antialiased;
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-up {
+  animation: fadeUp 0.25s ease both;
+}
+
+@keyframes chatPop {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-chat {
+  animation: chatPop 0.2s ease both;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+}
+
+.chat-content p {
+  margin: 0;
+}
+.chat-img-line {
+  margin: 2px 0;
+}
+.chat-img-line img {
+  max-width: 100%;
+  max-height: 220px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  display: block;
+}
+.chat-img-alt {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 3px !important;
+}
