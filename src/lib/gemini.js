@@ -145,6 +145,34 @@ export function saveGeminiKeyLocal(key) {
   }
 }
 
+function friendlyError(text) {
+  if (/429|quota|rate limit|rate_limit|RATE_LIMIT/i.test(text))
+    return 'Kuota Google Gemini habis / melebihi batas (429). Solusi: (1) aktifkan Billing di AI Studio/Cloud untuk key ini, atau (2) tunggu reset kuota harian, atau (3) pakai model flash yang kuota gratisnya lebih besar.'
+  if (/403|permission|billing|access.?denied/i.test(text))
+    return 'Akses ditolak (403) — cek billing & daftar model yang diizinkan untuk key ini.'
+  if (/api key not valid|invalid key|API_KEY_INVALID|FORBIDDEN/i.test(text))
+    return 'API key tidak valid. Pastikan diawali "AIzaSy..." dan belum dicabut.'
+  if (/not found|404|do not exist|deprecated/i.test(text))
+    return 'Model tidak tersedia untuk key ini. Gunakan model dari daftar "Model tersedia".'
+  return text
+}
+
+async function apiFetch(endpoint, key, init = {}) {
+  const bases = ['v1beta', 'v1']
+  let lastErr = null
+  for (const v of bases) {
+    const url = `${API.replace('/v1beta', '')}/${v}/${endpoint}?key=${encodeURIComponent(key)}`
+    try {
+      const res = await fetch(url, { ...init, headers: { 'Content-Type': 'application/json', ...(init.headers || {}) } })
+      if (res.ok) return { version: v, data: await res.json() }
+      lastErr = new Error(`(${v}) ${friendlyError((await res.text()).slice(0, 500))}`)
+    } catch (e) {
+      lastErr = e
+    }
+  }
+  throw lastErr
+}
+
 export async function getGeminiKey() {
   const local = getGeminiKeySync()
   if (local) return local
@@ -160,11 +188,7 @@ export async function getGeminiKey() {
 }
 
 export async function listGeminiModels(key) {
-  const res = await fetch(`${API}/models?key=${encodeURIComponent(key)}`, {
-    headers: { 'Content-Type': 'application/json' },
-  })
-  if (!res.ok) throw new Error((await res.text()).slice(0, 200))
-  const data = await res.json()
+  const { data } = await apiFetch('models', key)
   const names = (data?.models || [])
     .filter((m) => m?.supportedGenerationMethods?.includes('generateContent'))
     .map((m) => String(m.name).replace(/^models\//, ''))
@@ -173,12 +197,12 @@ export async function listGeminiModels(key) {
 }
 
 const PREFERRED_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-pro',
   'gemini-3-6',
   'gemini-3-5',
   'gemini-3-4',
-  'gemini-2.5-pro',
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
   'gemini-2.0-flash',
   'gemini-1.5-pro',
   'gemini-1.5-flash',
@@ -223,17 +247,13 @@ export async function getGeminiModel() {
 }
 
 export async function testGeminiKey(key, model = getGeminiModelSync()) {
-  const res = await fetch(`${API}/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
+  const { data } = await apiFetch(`models/${model}:generateContent`, key, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: 'Balas hanya satu kata: oke' }] }],
     }),
   })
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(text.slice(0, 200))
-  }
+  if (!data) throw new Error('Respons kosong dari Gemini')
   return true
 }
 
